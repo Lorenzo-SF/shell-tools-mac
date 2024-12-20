@@ -16,7 +16,7 @@
 # ======
 # ======
 # =================================================================================================
-
+ 
 # =================================================================================================
 # ====== Variables
 # =================================================================================================
@@ -31,14 +31,12 @@ SYSTEM_ARCHITECTURE=""
 # =================================================================================================
 # ====== Paths
 
-LINK_BASE_PATH=~/.local/bin/
+LINK_BASE_PATH=/usr/local/bin
 
 SHELL_TOOLS_BASE_PATH=~/shell-tools
 SHELL_TOOLS_CONFIG=$SHELL_TOOLS_BASE_PATH/shell-tools.sh
 SHELL_TOOLS_PATH=$SHELL_TOOLS_BASE_PATH/shell-tools.sh
 SHELL_TOOLS_LINK_PATH=$LINK_BASE_PATH/shell-tools
-
-SWAP_FILE=/swapfile
 
 ASDF_ROOT_PATH=~/.asdf
 ASDF_PATH=$ASDF_ROOT_PATH/asdf.sh
@@ -62,6 +60,19 @@ OMZ_THEMES_PATH=$OMZ_PATH/themes
 # COLOR_SAD='#000000'
 # COLOR_BACKGROUND='#32302F'
 
+# NO_COLOR="#F8F8F2"
+# COLOR_PRIMARY="#E6E6E6"
+# COLOR_SECONDARY="#9AEDFE"
+# COLOR_TERNARY="#DB7202"
+# COLOR_QUATERNARY="#CAA9FA"
+# COLOR_SUCCESS="#5AF78E"
+# COLOR_WARNING="#F4F99D"
+# COLOR_ERROR="#FF6E67"
+# COLOR_HAPPY="#FFCDF6"
+# COLOR_SAD="#000000"
+# COLOR_BACKGROUND="#282A36"
+
+
 NO_COLOR="#F8F8F2"
 COLOR_PRIMARY="#E6E6E6"
 COLOR_SECONDARY="#9AEDFE"
@@ -70,8 +81,11 @@ COLOR_QUATERNARY="#CAA9FA"
 COLOR_SUCCESS="#5AF78E"
 COLOR_WARNING="#F4F99D"
 COLOR_ERROR="#FF6E67"
+COLOR_HAPPY="#FFCDF6"
 COLOR_SAD="#000000"
 COLOR_BACKGROUND="#282A36"
+
+
 
 # =================================================================================================
 # ======  Gradient colours
@@ -85,7 +99,7 @@ GRADIENT_6='#E66EB2'
 
 # ====== Comportamiento de
 HIDE_OUTPUT=''
-SELECTED_ANIMATION="BRAILLE"
+SELECTED_ANIMATION=BRAILLE
 SIMPLE_ECHO=""
 
 # =================================================================================================
@@ -130,17 +144,36 @@ install_shell_tools() {
 
     print_semiheader "Shell-tools"
     print_message_with_animation "Instalando..." "$COLOR_TERNARY" "" "center"
-    mkdir -p "$LINK_BASE_PATH"
-    mkdir -p "$SHELL_TOOLS_BASE_PATH"
-    rm -f "$SHELL_TOOLS_BASE_PATH"/*
-    cp -r $(pwd)/shell-tools.sh "$SHELL_TOOLS_BASE_PATH"
+    
+    sudo mkdir -p "$LINK_BASE_PATH"
 
-    rm -f $SHELL_TOOLS_LINK_PATH
-    ln -s $SHELL_TOOLS_PATH $SHELL_TOOLS_LINK_PATH
+    if [[  -e "$SHELL_TOOLS_LINK_PATH" ]]; then
+        sudo rm -f $SHELL_TOOLS_LINK_PATH
+    fi
+
+    sudo ln -s $SHELL_TOOLS_PATH $SHELL_TOOLS_LINK_PATH
 
     if !command -v brew &>/dev/null; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        echo >> /Users/virtualpici/.zprofile
+        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/virtualpici/.zprofile
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+
+        
         exec_command "sudo softwareupdate --install-rosetta"
+        
+        print_separator "" "=" "full" "" "$COLOR_HAPPY"
+        print_message "Se ha instalado Hombrew (brew para los amigos) y Rosetta" "$COLOR_HAPPY" "" "centered"
+        print_separator "" "=" "full" "" "$COLOR_HAPPY" "after"
+    fi
+
+    if [ ! -d "/Applications/iTerm.app" ] && [[ "$(print_question "¿Quieres instalar iTerm2? Los colorinchis de Trus se verán de fábula" "$COLOR_HAPPY")" = "Y" ]]; then
+        install_packages "yes" "iterm2"
+        print_separator "" "=" "full" "" "$COLOR_HAPPY"
+        print_message "Se ha instalado iTerm2" "$COLOR_HAPPY" "" "centered"
+        print_message "Se recomienda encarecidamente ver el siguiente video: https://www.youtube.com/watch?v=27Fi2RcdBFQ" "$COLOR_HAPPY" "" "centered"
+        print_message "Es para ver iTerm2 mas bonico" "$COLOR_HAPPY" "" "centered"
+        print_separator "" "=" "full" "" "$COLOR_HAPPY" "after"
     fi
 
     set_terminal_config
@@ -156,16 +189,17 @@ install_packages() {
     
     if [ -z "$preupdate" ]; then
         print_semiheader "Updating system"
-        exec_command "brew update && brew upgrade" ;;
+        exec_command "brew update && brew upgrade"
         print_message "System updated" "$COLOR_SUCCESS" "after"
     fi 
 
     for package in "${list_packages[@]}"; do
         print_message_with_animation "Installing $package" "$COLOR_SECONDARY"
-        exec_command "brew install -y $package"
+        exec_command "brew install $package"
         print_message "$package installed" "$COLOR_SUCCESS"
     done
 }
+
 
 # =================================================================================================
 # ====== Tools
@@ -182,20 +216,22 @@ check_sudo() {
 normalize_text() {
     local text="${1:-""}"
     local uplo="${2:-"lower"}"
-    local from="[:upper:]"
-    local to="[:lower:]"
-
-    # Quitar espacios y tabulaciones al principio y al final
+    
     text=$(echo "$text" | sed 's/^[[:space:]\t]*//;s/[[:space:]\t]*$//')
 
-    [ "$uplo" == "upper" ] && from="[:lower:]" && to="[:upper:]"
+    if [ "$uplo" == "upper" ]; then
+        text=$(echo "$text" | awk '{print toupper($0)}')
+    else
+        text=$(echo "$text" | awk '{print tolower($0)}')
+    fi
 
     if command -v iconv >/dev/null 2>&1; then
-        echo "$text" | tr "$from" "$to" | iconv -f utf8 -t ascii//TRANSLIT
+        echo "$text" | iconv -f utf8 -t ascii//TRANSLIT
     else
-        echo "$text" | tr "$from" "$to"
+        echo "$text"
     fi
 }
+
 
 get_tabs() {
     local tabs=$(($1 * 4))
@@ -303,10 +339,12 @@ update_config() {
 
     exec_command "sed -i '' 's/^$option=.*/$option='$value'/' '$config_file'"
 }
-
+  
+    
 create_ssh() {
     local SSH_NAME=$1
-    if [ -n $SSH_NAME ] && print_question "SE VA A PROCEDER HACER BACKUP DE LAS CLAVES SSH '$SSH_NAME' ACTUALES, BORRAR LA CLAVE EXISTENTE Y CREAR UNA NUEVA HOMÓNIMA" "$COLOR_ERROR" = 0; then
+                           
+    if [ -n $SSH_NAME ] && [[ "$(print_question "SE VA A PROCEDER HACER BACKUP DE LAS CLAVES SSH '$SSH_NAME' ACTUALES, BORRAR LA CLAVE EXISTENTE Y CREAR UNA NUEVA HOMÓNIMA" "$COLOR_WARNING")" = "Y" ]]; then
         cd $SSH_PATH
 
         if [ -f "$SSH_PUBLIC_FILE" ] || [ -f "$SSH_PRIVATE_FILE" ]; then
@@ -330,7 +368,7 @@ create_ssh() {
 
         #Este eval está porque si se instala el entorno en el WSL de windows, el agente no se mantiene levantado
         #En linux no es necesario pero no molesta
-        eval "$(ssh-agent -s)"
+        exec_command 'eval "$(ssh-agent -s)"'
         ssh_add_result=$(ssh-add $SSH_PRIVATE_FILE 2>&1)
 
         if [[ "$ssh_add_result" == *"Identity added"* ]]; then
@@ -349,11 +387,13 @@ create_ssh() {
 # =================================================================================================
 
 get_color() {
-    local COLOR=${1:-$COLOR_PRIMARY}
-    local R=$((16#${COLOR:1:2}))
-    local G=$((16#${COLOR:3:2}))
-    local B=$((16#${COLOR:5:2}))
-    echo -ne "\x1B[38;5;${R};${G};${B}m"
+    local hex=${1:-$COLOR_PRIMARY}
+    hex=${hex/#\#/}  
+    local r=$(echo $((16#${hex:0:2})))  
+    local g=$(echo $((16#${hex:2:2})))
+    local b=$(echo $((16#${hex:4:2})))
+    
+    echo "${r};${g};${b}"  
 }
 
 hex_to_rgb() {
@@ -489,7 +529,7 @@ clone_if_not_exists() {
     local target_dir="$2"
     local params=${3:-""}
 
-    eval "$(ssh-agent -s)"
+    exec_command 'eval "$(ssh-agent -s)"'
     ssh_add_result=$(ssh-add $SSH_PRIVATE_FILE 2>&1)
 
     if [ ! -d "$target_dir" ]; then
@@ -557,88 +597,35 @@ config_git() {
 # =================================================================================================
 # ====== Personalization
 # =================================================================================================
-
-splash_loader() {
-    print_semiheader "Splash loader"
-    print_message "Splash loader 'hexa_retro' will be installed"
-    print_message "If you want change it, please visit 'https://github.com/adi1090x/plymouth-themes', choose your favourite and update this script" "$COLOR_SECONDARY"
-    print_message "The repo is organized in diferent folders, depends that you want is in a folder or another" "$COLOR_TERNARY"
-
-    if [ -e "~/plymouth-themes" ]; then
-        rm -fr ~/plymouth-themes
-    fi
-
-    cd ~/
-    clone_if_not_exists https://github.com/adi1090x/plymouth-themes.git ~/plymouth-themes
-    cd plymouth-themes/pack_3
-    cp -r hexa_retro /usr/share/plymouth/themes/
-    update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/hexa_retro/hexa_retro.plymouth 10000
-    update-alternatives --config default.plymouth
-    update-initramfs -u
-    print_message "Splash loader installed succesfully" "$COLOR_SUCCESS" "both"
-}
-
-swap() {
-    print_semiheader "Update SWAP file"
-
-    if [[ "$(print_question 'This action will delete actual SWAP file (if exists) and creates new one')" = "Y" ]]; then
-        read -p "Please, enter new SWAP size (in MB): " SWAP_SIZE
-
-        if [ -n "$SWAP_SIZE" ] && [ "$SWAP_SIZE" != "0" ]; then
-            if [ -e "$SWAP_FILE" ]; then
-                print_message_with_animation "SWAP file exists. Deleting..." "$COLOR_TERNARY"
-
-                swapoff $SWAP_FILE
-                rm $SWAP_FILE
-
-                print_message "SWAP file deleted succesfully" "$COLOR_SUCCESS"
-            fi
-
-            print_message "Creating a new SWAP file of $((SWAP_SIZE / 1024))GB..." "$COLOR_TERNARY"
-
-            fallocate -l "${SWAP_SIZE}G" $SWAP_FILE
-            chmod 600 $SWAP_FILE
-            mkswap $SWAP_FILE
-            swapon $SWAP_FILE
-
-            echo "$SWAP_FILE none swap sw 0 0" >>/etc/fstab
-
-            print_message "SWAP file created succesfuly" "$COLOR_SUCCESS" "both"
-        else
-            print_message "Size not valid" "$COLOR_ERROR" "both"
-        fi
-    fi
-}
-
-install_zsh() {
-    print_semiheader "Instalación de ZSH"
-
-    print_message_with_animation "Instalando $package" "$COLOR_TERNARY"
-    install_packages "" "zsh"
-    print_message "$package instalado" "$COLOR_SUCCESS"
-
+ 
+install_omz() {
     print_semiheader "Instalación de Oh-My-ZSH"
 
-    cd
+    print_separator "" "=" "full" "" "$COLOR_SAD"
+    print_message "OJETE CON ESTO" "$COLOR_ERROR" "" "centered"
+    print_message "Se va a (RE)instalar Oh-My-ZSH y plugins, lo cual tambien va a SOBREESCRIBIR el archivo .zshrc" "$COLOR_ERROR" "" "centered"
+    print_message "Si tenias configuracion propia, es momento de guardarla" "$COLOR_ERROR" "" "centered"
+    print_separator "" "=" "full" "" "$COLOR_SAD" "after"
 
-    if [ -e "$OMZ_PATH" ]; then
-        rm -fr $OMZ_PATH
+    if [[ "$(print_question "¿Continuar?" "$COLOR_WARNING")" = "Y" ]]; then
+        cd
+
+        if [ -e "$OMZ_PATH" ]; then
+            rm -fr $OMZ_PATH
+        fi
+
+
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
+        clone_if_not_exists https://github.com/zsh-users/zsh-syntax-highlighting.git $OMZ_PLUGINS_PATH/zsh-syntax-highlighting
+        clone_if_not_exists https://github.com/zsh-users/zsh-autosuggestions $OMZ_PLUGINS_PATH/zsh-autosuggestions
+        clone_if_not_exists https://github.com/zsh-users/zsh-completions $OMZ_PLUGINS_PATH/zsh-completions
+        clone_if_not_exists https://github.com/gusaiani/elixir-oh-my-zsh.git $OMZ_PLUGINS_PATH/elixir
+
+        print_header "$COLOR_SECONDARY" "OMZ y todos sus plugins instalados correctamente."
+        print_message "Los cambios surgiran efecto cuando cierres todas las terminales (incluida esta) y vuelvas a abrir una" "$COLOR_SUCCESS"
+        print_message "Para gestionar los temas de ZSH, lanza 'omz theme' y sigue las instrucciones" "$COLOR_SUCCESS" "after"
     fi
-
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-
-    clone_if_not_exists https://github.com/zsh-users/zsh-syntax-highlighting.git $OMZ_PLUGINS_PATH/zsh-syntax-highlighting
-    clone_if_not_exists https://github.com/zsh-users/zsh-autosuggestions $OMZ_PLUGINS_PATH/zsh-autosuggestions
-    clone_if_not_exists https://github.com/zsh-users/zsh-completions $OMZ_PLUGINS_PATH/zsh-completions
-    clone_if_not_exists https://github.com/gusaiani/elixir-oh-my-zsh.git $OMZ_PLUGINS_PATH/elixir
-    clone_if_not_exists https://github.com/ChesterYue/ohmyzsh-theme-passion.git $OMZ_THEMES_PATH/omz-theme-passion/
-
-    exec_command "cp $OMZ_THEMES_PATH/omz-theme-passion/passion.zsh-theme $OMZ_THEMES_PATH/passion.zsh-theme"
-    exec_command "rm -fr $OMZ_THEMES_PATH/omz-theme-passion/"
-
-    print_header "$COLOR_SECONDARY" "ZSH y todos sus plugins instalados correctamente."
-    print_message "Los cambios surgiran efecto cuando cierres todas las terminales (incluida esta) y vuelvas a abrir una" "$COLOR_SUCCESS"
-    print_message "Se ha instalado el tema 'passion'. Para gestionar los temas de ZSH, lanza 'omz theme' y sigue las instrucciones" "$COLOR_SUCCESS" "after"
 }
 
 # =================================================================================================
@@ -646,8 +633,6 @@ install_zsh() {
 # =================================================================================================
 
 print_message() {
-    source shell-tools
-
     local message=${1:-""}
     local color=${2:-"$NO_COLOR"}
     local new_line_before_or_after=${3:-"normal"}
@@ -673,42 +658,41 @@ print_message() {
     fi
 
     if [ -z "$SIMPLE_ECHO" ]; then
-        if [ "$color" != "gradient" ]; then
-            local transformed_color=$(get_color "$color")
-            local transformed_no_color=$(get_color "$NO_COLOR")
-            message=$transformed_color$message$transformed_no_color
-        fi
-
         case "$new_line_before_or_after" in
         "after") message="$message\n" ;;
         "before") message="\n$message" ;;
         "both") message="\n$message\n" ;;
         "normal") message="$message" ;;
         esac
-    fi
 
-    if [ "$color" = "gradient" ]; then
-        print_message_with_gradient "$message"
+        if [ "$color" = "gradient" ]; then
+            print_message_with_gradient "$message"
+        else        
+            local transformed_color=$(get_color "$color")
+            local transformed_no_color=$(get_color "$NO_COLOR")
+            printf "\e[38;2;${transformed_color}m${message}\e[38;2;${transformed_no_color}m\n"
+        fi        
     else
-        echo -ne "$message\n"
+        echo "$message"
     fi
-
 }
 
 print_question() {
-    # to use: if print_question "<mensaje>" = 0; then
-    source shell-tools
-    
-    local question=${1:-""}
+    # to use: if print_question "<mensaje>" = 0; then    
+    local phrase=${1:-""}
     local color=${2:-"$COLOR_PRIMARY"}
     local afirmative_option=${3:-"y"}
     local negative_option=${4:-"n"}
     local response=""
 
-    afirmative_option=$(normalize_text "$afirmative_option" "upper")
-    negative_option=$(normalize_text "$negative_option")
+    afirmative_option=$(echo "$afirmative_option" | tr '[:lower:]' '[:upper:]')
 
-    read -p "$(eval 'print_message "$question ($afirmative_option/$negative_option): " "$color" "after"')" user_input
+
+    local question="$phrase ($afirmative_option/$negative_option): "
+    print_message "$question" "$color"  >&2
+    message="$(printf "\t\t=> ")"
+    printf "%s" "$message" >&2
+    read user_input
 
     if [ "$user_input" = "$afirmative_option" ]; then
         response=$afirmative_option
@@ -724,7 +708,7 @@ print_question() {
 }
 
 print_menu() {
-    source shell-tools
+    
     local HELP_SCRIPT=$1
     shift
     local items=("$@")
@@ -758,13 +742,29 @@ extract_menu_option() {
     echo "$first_value"
 }
 
+print_ascii_image(){
+    local logo=("$@")
+
+    local centered_logo=()
+    local max_length=$(printf "%s" "${logo_lines[@]}" | awk '{print length($0)}' | sort -nr | head -n1)
+
+    for line in "${logo[@]}"; do
+        centered_logo+=("$(pad_message "$line" "center" " " "$max_length")")
+    done
+
+    print_message_with_gradient "$(printf "%s\n" "${centered_logo[@]}")"
+
+    sleep 0.5
+}
+
+
 # =================================================================================================
 # ====== Especial messages
 
 print_message_with_gradient() {
     local message=$1
 
-    echo "$message" | lolcat
+    echo "$message" | gterm $GRADIENT_1 $GRADIENT_2 $GRADIENT_3 $GRADIENT_4 $GRADIENT_5 $GRADIENT_6
 }
 
 print_separator() {
@@ -872,15 +872,22 @@ print_test_messages() {
     print_message_with_gradient "This is a example message with GRADIENT"
 }
 
+print_not_available(){
+    print_message "Opcin no disponible temporalmente" "$COLOR_WARNING" "both" "center"
+}
 # =================================================================================================
 # ====== Animations
 
 play_animation() {
-    message=$1
-    tabs=$2
-    color=$3
+    local tabs=$2
+    local message=$1
+    local color=$3
     tput civis
-    message=$(get_color "$color")$message
+    local transformed_color=$(get_color "$color")
+    local transformed_no_color=$(get_color "$NO_COLOR")
+    
+    message="\e[38;2;${transformed_color}m${message}\e[38;2;${transformed_no_color}m"    
+    
     start_time=$(date +%s)
 
     while true; do
@@ -893,15 +900,22 @@ play_animation() {
             elapsed_time=$((current_time - start_time))
             formatted_time=$(printf "%02d:%02d" $((elapsed_time / 60)) $((elapsed_time % 60))) # Formato mm:ss
 
-            echo -ne "\e[1m $frame $message ($formatted_time)\033[0K\r"
+            printf "\r$frame $message ($formatted_time)"
             sleep 0.075
         done
     done
 }
 
 stop_animation() {
-    kill "${animation_pid}" > /dev/null
-    echo -ne "\033[0K"
+    if [[ -n "$animation_pid" && $(ps -p "$animation_pid" -o comm=) ]]; then
+        disown "$animation_pid" 2>/dev/null
+        kill "$animation_pid" > /dev/null 2>&1
+        wait "$animation_pid" 2>/dev/null
+    fi
+
+    local transformed_no_color=$(get_color "$NO_COLOR")
+
+    echo -ne "\x1B[0K"
     tput cnorm
 }
 
@@ -913,8 +927,8 @@ print_message_with_animation() {
 
     case "$color" in
     "$COLOR_PRIMARY") tabs=1 ;;
-    "$COLOR_SECONDARY") tabs=2 ;;
-    "$COLOR_TERNARY" | "$COLOR_SUCCESS" | "$COLOR_ERROR" | "$COLOR_WARNING") tabs=3 ;;
+    "$COLOR_SECONDARY" | "$COLOR_SUCCESS") tabs=2 ;;
+    "$COLOR_TERNARY" | "$COLOR_ERROR" | "$COLOR_WARNING") tabs=3 ;;
     "$COLOR_QUATERNARY") tabs=4 ;;
     *) tabs=0 ;;
     esac
@@ -943,73 +957,9 @@ set_active_animation() {
 # ====== Main
 
 if [ "$1" = "-v" ] || [ "$1" = "--version" ]; then
-    print_message_with_gradient "**********************++====++=---------------------------::------------------------------------------------------------"
-    print_message_with_gradient "**************************++=+=-----------------:::::::::::::::::::::::-------------------------------------------------"
-    print_message_with_gradient "******************************=-------------:---------::::::::::--:-----:::---------------------------------------------"
-    print_message_with_gradient "**************************#**##**==------------------:::.......::---:::::--:-::-----------------------------------------"
-    print_message_with_gradient "***************************########*+=----------------:::::.:::::---::::--------::--------------------------------------"
-    print_message_with_gradient "****************************########**+----------====------:::--::--::-------------:------------------------------------"
-    print_message_with_gradient "****************************########+=------------=====---==----=----::--------------:----------------------------------"
-    print_message_with_gradient "****************************#######+-----------------=====-=====-::-::::--------------:---------------------------------"
-    print_message_with_gradient "****************************#####*------------------::::::::::::::::::::------------------------------------------------"
-    print_message_with_gradient "***************************#####+-----:.::-----------::::::::::::::::::------------------:------------------------------"
-    print_message_with_gradient "****************************##*=----:     :------------:::::::::::::----------------------:-----------------------------"
-    print_message_with_gradient "***************************###=----: .... .=--------------::-:-----:----------------------:-----------------------------"
-    print_message_with_gradient "*****************************=---=- :+==...===-----------------:.     .:-------------------:----------------------------"
-    print_message_with_gradient "****************************======:.*#+*=.:========-----------.  ...... :=-=--===----=---==-----------------------------"
-    print_message_with_gradient "***************************+======.:#%%#-.==================- ....:......===================:---------------------------"
-    print_message_with_gradient "***************************========:*##=:===================-.:-**=**-:..===================----------------------------"
-    print_message_with_gradient "**************************==========---=++==================-:-%%#+#%*:::===================----------------------------"
-    print_message_with_gradient "*************************+==========++++++==========++++++++=:=%%%%%%*::=+===================:--------------------------"
-    print_message_with_gradient "*************************===============+============++++++++=-+%%%#+--++++==+===============:--------------------------"
-    print_message_with_gradient "*************************+===================----======+++++++++====+++++++++++++============:--------------------------"
-    print_message_with_gradient "*************************+================--------:---===++++++++++++++++++++++++++==========---------------------------"
-    print_message_with_gradient "*************************+====--------=======-----------===+++++++++++++++++++++++++++=======-====----------------------"
-    print_message_with_gradient "*************************+=----===============---=-==-===-===+++++++++++++++++++++++++++=====-----====------------------"
-    print_message_with_gradient "**************************==============---====================++++++++++++++++++++++++++++==:-------====---------------"
-    print_message_with_gradient "**************************+**##########**+++======================++++++++++++++++++++++++++-:::--===========-----------"
-    print_message_with_gradient "*************************##%%%%###%%%%%%%%%%#**++====================+++++++++++++++++++++++::::--===============-------"
-    print_message_with_gradient "**************************+*###%%%%%%%%%%%%%%%%#**++=====+==============+++++++****+**+++++:::::::=+++++=============---"
-    print_message_with_gradient "**************************+#%%%%%%%%%%%%%%%%%%%%%%##*++=++++++++=========+++*****+*****+++-:::::::-+********++++++======"
-    print_message_with_gradient "**********************+=-:=*##%%%%%%%%%%%%%%%%%%%%%%%%#*+==+++++++=========++********+*++=:::::::::-+****************+++"
-    print_message_with_gradient "******************+=-::::.:**###%%%%%%%%%%%%%%%%%%%%%%%%#*++++++=========+=+++*********+-:::::::::::-+******************"
-    print_message_with_gradient "***************+=:::::.....-***#####%%%%%%%%%%%%%%%%%%%%%%%#**+++=+++******+*********+=::::::::::::::-******************"
-    print_message_with_gradient "*************+-::::....::::-=*#*+*############%%%%%%%%%%%%%%%%####*****************+=::::::::::::::::-=##***************"
-    print_message_with_gradient "************-:::::...::::-=++++*#**###*+*############%###%%%####***##**#**********+==-:::::::::::::::::=####************"
-    print_message_with_gradient "**********=::::::.::::::==++++++**#####***#########***+++*#############********++=====-:::::::::::::::::-+#####*********"
-    print_message_with_gradient "********+-::::::::::::::==++++++****######*##########################********+=========-::::::::::::::::::-+#%####******"
-    print_message_with_gradient "*******+-:::::::::::::::-=+++++++******############################********++===========-::::::::::::::.::::=#%%%####***"
-    print_message_with_gradient "******+::::::::::::::::::-=++++++******######################***********+++==============-:::::::::::::::::::-*#%%%%###*"
-    print_message_with_gradient "******-::::::::::::::::::-=++++++******####################*******++++++==================::::::::::::::::::::-*##%%%%##"
-    print_message_with_gradient "*****=-::::::::::::::::::-=++++++******##################***++++++++++++=++++++===========-::::::::::::::::::::-*#####%%"
-    print_message_with_gradient "*****=-::::::::::::::::::==++++++*******##############***++++++++++++++++++++++++=========-::::::::::::::::::::::*####%%"
-    print_message_with_gradient "*****---:::::::::::::::::==++++++*******############***+++++++++++++++++++++++++++========-::::::::::::::::::::::-######"
-    print_message_with_gradient "*****=-:::::::::::::::::-==++++++********#######*****+++++++++++++++++++++++++++++========::::::::::::::::::::::::+#####"
-    print_message_with_gradient "*****=::::::::::::::::::-==+++++++****************++++++++++++++++++++++++++++++=======--:::::::::::::::::::::::::-*####"
-    print_message_with_gradient "*****=::::::::::::::::::==++++++++++***********++++++++++++++++++++++++++===------:::::::::::::::::::::::::::::::::=####"
-    print_message_with_gradient "*****=-:::::::::::::::::==+++++++++++++++++*+++++++++++++++++++++++++++=-::::::::::::::::::::::::::::::::::::::::::-####"
-    print_message_with_gradient "*****-::::::::::::::::::==+++++++++++++++++++++++++++++++++++++++++++==:::::::::::::::::::::::::::::::::::::::::::::*###"
-    print_message_with_gradient "*****---:::::::::::::::-==++++++++++++++++++++++++++++++++++++++++++=-:::::::::::::::::::::::::::::::::::::::::::::-+###"
-    print_message_with_gradient "****+----::::::::::::::-=++++++++++++++++++++++++++++++++++++++++++=-::::::::::::::::::::::::::::::::::::::::::::::-+###"
-    print_message_with_gradient "*****=----:::::::::::::-=++++++++++++++++++++++++++++++++++++++++==-::::::::::::::::::::::::::::::::::::::::::::::--+###"
-    print_message_with_gradient "*****+------:::::::::::-=+++++++++++++++++++++++++++++++++++++++==:::::::::::::::::::::::::::::::::::::::::::::::---+###"
-    print_message_with_gradient "******=-------:::::::::-=++++++++++++++++++++++++++++++++++++++==-::::::::::::::::::::::::::::::::::::::::::::::----*###"
-    print_message_with_gradient "*****#+==----:::-::::::-=+++++++++++++++++++++++++++++++++++++=-:::::::::::::::::::::::::::::::::::::::::::::-:----=*###"
-    print_message_with_gradient "****##*+===-----------:-=++++++++++++++++++++++++++++++++++++=-::::::::::::::::::::::::::::::::::::::::::---------=+####"
-    print_message_with_gradient "*****##**+===-----------==++++++++++++++++++++++++++++++++++=-:::::::::::::::::::::::::::::::::::::::------------=+*####"
-    print_message_with_gradient "*****#@#**++=====--------=+++++++++++++++++++++++++++++++++=-:::::::::::::::::::::::::::::::::::::::-----------===*#####"
-    print_message_with_gradient "*****%@@#***+++=====-:---=++++++++++++++++++++++++++++++++=-::::::::::::::::::::::::::::::::::::::--------=======*######"
-    print_message_with_gradient "*****@@@@******++++-.:-.-==+++++++++++++++++++***++++++++=-:::::::---::::::::::::::::::::::::-----------=======+*#######"
-    print_message_with_gradient "****#@@@@@#******+=.-+: :-===+++++++++++++++********++++=---------:------:-::::::::::::--------------=====+++++#@%%%####"
-    print_message_with_gradient "****#@@@@@@%******++*+:.=.:-.=*++++++++*+**********++++=------------------------:-------------------==+++++++*%@@@%%%%%#"
-    print_message_with_gradient "****#@@@@@@@%*********+:=-.:.-:*+++++++++**********+++==------------------------------------------===++++++*%%%@@@######"
-    print_message_with_gradient "*****@@@@@@@@@#*********+==::--*=:+===+**=+*******+++==-----------------------------------------====+++*#%%%%%%%%@######"
-    print_message_with_gradient "*****@@@@@@@@@@%#***********++-=--=-=+--*--+*+++**--+=====-=----------------------------=========++++*%@@@@@%@%%%%######"
-    print_message_with_gradient "*****@@@@@@@@@@@@%#************++**-=+==+-+*=-=-:+::::-============------------==============++++++*%@@@@@@@@@@@@@######"
-    print_message_with_gradient "*****%@@@@@@@@@@@@@%#####***********+++++-=*-==-:+:=++.:++++========================+++++++++++++*#@@@@@@@@@@@@@@@%#####"
-    print_message_with_gradient "*****%@@@@@@@@@@@@@@@%######*****************+==+*=-==:=*++++++++++++++++++++++++++++++++++++++*%@@@@@@@@@@@@@%@@@%%%###"
-    print_message_with_gradient "*****%%@@@@@@@@@@@@@@@@@%#####*********************************+++++++++++++++++++++++++++++*#%@@@@@@@@@@@@@@@%%%#*#%%%%"
-    print_message_with_gradient "*****%%%@@@@@@@@@@@@@@@@@@@%######********************************************+++++++++++*#%@@@@@@@@@@@@@@@@@@%##**###%%"
+    # local logo = ("")
+        
+    # print_ascii_image "${logo[@]}"
     print_message "This is SHELL-TOOLS ($SHELL_TOOLS_VERSION) and you are afortunately" "$COLOR_QUATERNARY" "" "center"
     exit 0
 elif [[ $0 == "./shell-tools.sh" ]]; then
